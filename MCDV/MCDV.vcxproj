@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -23,6 +23,7 @@
     <ProjectGuid>{3F5631FE-0F0C-4285-B301-66DA219121EC}</ProjectGuid>
     <RootNamespace>MCDV</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <ProjectName>VMFMerge</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -122,39 +123,38 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Camera.hpp" />
-    <ClInclude Include="gamelump.hpp" />
-    <ClInclude Include="interpolation.h" />
-    <ClInclude Include="generic.hpp" />
-    <ClInclude Include="lumps_geometry.hpp" />
-    <ClInclude Include="lumps_visibility.hpp" />
-    <ClInclude Include="Mesh.hpp" />
-    <ClInclude Include="GameObject.hpp" />
-    <ClInclude Include="nav.hpp" />
-    <ClInclude Include="radar.hpp" />
-    <ClInclude Include="Shader.hpp" />
-    <ClInclude Include="stb_image.h" />
-    <ClInclude Include="tbsp.hpp" />
-    <ClInclude Include="Texture.hpp" />
-    <ClInclude Include="util.h" />
-    <ClInclude Include="vbsp.hpp" />
-    <ClInclude Include="vdf.hpp" />
-    <ClInclude Include="VectorOctTree.hpp" />
-    <ClInclude Include="vtx.hpp" />
-    <ClInclude Include="vvd.hpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="glad.c" />
-    <ClCompile Include="GLFWUtil.hpp" />
+    <ClCompile Include="GLFWUtil.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Shader.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="depth.fs" />
-    <None Include="depth.vs" />
+    <ClInclude Include="BoundsSelector.h" />
+    <ClInclude Include="Conlog.h" />
+    <ClInclude Include="ConvexPolytopes.h" />
+    <ClInclude Include="GameObject.h" />
+    <ClInclude Include="GLFWUtil.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Plane.h" />
+    <ClInclude Include="Shader.h" />
+    <ClInclude Include="stb_image.h" />
+    <ClInclude Include="TextFont.h" />
+    <ClInclude Include="Util.h" />
+    <ClInclude Include="ValveKeyValue.h" />
+    <ClInclude Include="VMF.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="additivecolor.fs" />
+    <None Include="additivecolor.vs" />
     <None Include="lit.fs" />
     <None Include="lit.vs" />
+    <None Include="textfont.fs" />
+    <None Include="textfont.vs" />
     <None Include="unlit.fs" />
     <None Include="unlit.vs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="dina-r.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

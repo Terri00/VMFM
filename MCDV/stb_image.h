@@ -1038,7 +1038,7 @@ static void stbi__vertical_flip(void *image, int w, int h, int bytes_per_pixel)
 	stbi_uc *bytes = (stbi_uc *)image;
 
 	for (row = 0; row < (h >> 1); row++) {
-		stbi_uc *row0 = bytes + row*bytes_per_row;
+		stbi_uc *row0 = bytes + row * bytes_per_row;
 		stbi_uc *row1 = bytes + (h - row - 1)*bytes_per_row;
 		// swap row0 with row1
 		size_t bytes_left = bytes_per_row;
@@ -3346,9 +3346,9 @@ static void stbi__YCbCr_to_RGB_row(stbi_uc *out, const stbi_uc *y, const stbi_uc
 		int r, g, b;
 		int cr = pcr[i] - 128;
 		int cb = pcb[i] - 128;
-		r = y_fixed + cr* stbi__float2fixed(1.40200f);
+		r = y_fixed + cr * stbi__float2fixed(1.40200f);
 		g = y_fixed + (cr*-stbi__float2fixed(0.71414f)) + ((cb*-stbi__float2fixed(0.34414f)) & 0xffff0000);
-		b = y_fixed + cb* stbi__float2fixed(1.77200f);
+		b = y_fixed + cb * stbi__float2fixed(1.77200f);
 		r >>= 20;
 		g >>= 20;
 		b >>= 20;
@@ -3480,9 +3480,9 @@ static void stbi__YCbCr_to_RGB_simd(stbi_uc *out, stbi_uc const *y, stbi_uc cons
 		int r, g, b;
 		int cr = pcr[i] - 128;
 		int cb = pcb[i] - 128;
-		r = y_fixed + cr* stbi__float2fixed(1.40200f);
-		g = y_fixed + cr*-stbi__float2fixed(0.71414f) + ((cb*-stbi__float2fixed(0.34414f)) & 0xffff0000);
-		b = y_fixed + cb* stbi__float2fixed(1.77200f);
+		r = y_fixed + cr * stbi__float2fixed(1.40200f);
+		g = y_fixed + cr * -stbi__float2fixed(0.71414f) + ((cb*-stbi__float2fixed(0.34414f)) & 0xffff0000);
+		b = y_fixed + cb * stbi__float2fixed(1.77200f);
 		r >>= 20;
 		g >>= 20;
 		b >>= 20;
@@ -3539,7 +3539,7 @@ typedef struct
 // fast 0..255 * 0..255 => 0..255 rounded multiplication
 static stbi_uc stbi__blinn_8x8(stbi_uc x, stbi_uc y)
 {
-	unsigned int t = x*y + 128;
+	unsigned int t = x * y + 128;
 	return (stbi_uc)((t + (t >> 8)) >> 8);
 }
 
@@ -4322,13 +4322,13 @@ static int stbi__create_png_image_raw(stbi__png *a, stbi_uc *raw, stbi__uint32 r
 {
 	int bytes = (depth == 16 ? 2 : 1);
 	stbi__context *s = a->s;
-	stbi__uint32 i, j, stride = x*out_n*bytes;
+	stbi__uint32 i, j, stride = x * out_n*bytes;
 	stbi__uint32 img_len, img_width_bytes;
 	int k;
 	int img_n = s->img_n; // copy it into a local for later
 
-	int output_bytes = out_n*bytes;
-	int filter_bytes = img_n*bytes;
+	int output_bytes = out_n * bytes;
+	int filter_bytes = img_n * bytes;
 	int width = x;
 
 	STBI_ASSERT(out_n == s->img_n || out_n == s->img_n + 1);
@@ -4343,7 +4343,7 @@ static int stbi__create_png_image_raw(stbi__png *a, stbi_uc *raw, stbi__uint32 r
 	if (raw_len < img_len) return stbi__err("not enough pixels", "Corrupt PNG");
 
 	for (j = 0; j < y; ++j) {
-		stbi_uc *cur = a->out + stride*j;
+		stbi_uc *cur = a->out + stride * j;
 		stbi_uc *prior;
 		int filter = *raw++;
 
@@ -4352,7 +4352,7 @@ static int stbi__create_png_image_raw(stbi__png *a, stbi_uc *raw, stbi__uint32 r
 
 		if (depth < 8) {
 			STBI_ASSERT(img_width_bytes <= x);
-			cur += x*out_n - img_width_bytes; // store output to the rightmost img_len bytes, so we can decode in place
+			cur += x * out_n - img_width_bytes; // store output to the rightmost img_len bytes, so we can decode in place
 			filter_bytes = 1;
 			width = img_width_bytes;
 		}
@@ -4435,7 +4435,7 @@ static int stbi__create_png_image_raw(stbi__png *a, stbi_uc *raw, stbi__uint32 r
 			// the loop above sets the high byte of the pixels' alpha, but for
 			// 16 bit png files we also need the low byte set. we'll do that here.
 			if (depth == 16) {
-				cur = a->out + stride*j; // start at the beginning of the row again
+				cur = a->out + stride * j; // start at the beginning of the row again
 				for (i = 0; i < x; ++i, cur += output_bytes) {
 					cur[filter_bytes + 1] = 255;
 				}
@@ -4448,8 +4448,8 @@ static int stbi__create_png_image_raw(stbi__png *a, stbi_uc *raw, stbi__uint32 r
 	// intefere with filtering but will still be in the cache.
 	if (depth < 8) {
 		for (j = 0; j < y; ++j) {
-			stbi_uc *cur = a->out + stride*j;
-			stbi_uc *in = a->out + stride*j + x*out_n - img_width_bytes;
+			stbi_uc *cur = a->out + stride * j;
+			stbi_uc *in = a->out + stride * j + x * out_n - img_width_bytes;
 			// unpack 1/2/4-bit into a 8-bit buffer. allows us to keep the common 8-bit path optimal at minimal cost for 1/2/4-bit
 			// png guarante byte alignment, if width is not multiple of 8/4/2 we'll decode dummy trailing data that will be skipped in the later loop
 			stbi_uc scale = (color == 0) ? stbi__depth_scale_table[depth] : 1; // scale grayscale values to 0..255 range
@@ -4461,14 +4461,14 @@ static int stbi__create_png_image_raw(stbi__png *a, stbi_uc *raw, stbi__uint32 r
 																			   // so we need to explicitly clamp the final ones
 
 			if (depth == 4) {
-				for (k = x*img_n; k >= 2; k -= 2, ++in) {
+				for (k = x * img_n; k >= 2; k -= 2, ++in) {
 					*cur++ = scale * ((*in >> 4));
 					*cur++ = scale * ((*in) & 0x0f);
 				}
 				if (k > 0) *cur++ = scale * ((*in >> 4));
 			}
 			else if (depth == 2) {
-				for (k = x*img_n; k >= 4; k -= 4, ++in) {
+				for (k = x * img_n; k >= 4; k -= 4, ++in) {
 					*cur++ = scale * ((*in >> 6));
 					*cur++ = scale * ((*in >> 4) & 0x03);
 					*cur++ = scale * ((*in >> 2) & 0x03);
@@ -4479,7 +4479,7 @@ static int stbi__create_png_image_raw(stbi__png *a, stbi_uc *raw, stbi__uint32 r
 				if (k > 2) *cur++ = scale * ((*in >> 2) & 0x03);
 			}
 			else if (depth == 1) {
-				for (k = x*img_n; k >= 8; k -= 8, ++in) {
+				for (k = x * img_n; k >= 8; k -= 8, ++in) {
 					*cur++ = scale * ((*in >> 7));
 					*cur++ = scale * ((*in >> 6) & 0x01);
 					*cur++ = scale * ((*in >> 5) & 0x01);
@@ -4500,7 +4500,7 @@ static int stbi__create_png_image_raw(stbi__png *a, stbi_uc *raw, stbi__uint32 r
 			if (img_n != out_n) {
 				int q;
 				// insert alpha = 255
-				cur = a->out + stride*j;
+				cur = a->out + stride * j;
 				if (img_n == 1) {
 					for (q = x - 1; q >= 0; --q) {
 						cur[q * 2 + 1] = 255;
@@ -4563,9 +4563,9 @@ static int stbi__create_png_image(stbi__png *a, stbi_uc *image_data, stbi__uint3
 			}
 			for (j = 0; j < y; ++j) {
 				for (i = 0; i < x; ++i) {
-					int out_y = j*yspc[p] + yorig[p];
-					int out_x = i*xspc[p] + xorig[p];
-					memcpy(final + out_y*a->s->img_x*out_bytes + out_x*out_bytes,
+					int out_y = j * yspc[p] + yorig[p];
+					int out_x = i * xspc[p] + xorig[p];
+					memcpy(final + out_y * a->s->img_x*out_bytes + out_x * out_bytes,
 						a->out + (j*x + i)*out_bytes, out_bytes);
 				}
 			}
@@ -5276,7 +5276,7 @@ static void *stbi__bmp_load(stbi__context *s, int *x, int *y, int *comp, int req
 	if (flip_vertically) {
 		stbi_uc t;
 		for (j = 0; j < (int)s->img_y >> 1; ++j) {
-			stbi_uc *p1 = out + j     *s->img_x*target;
+			stbi_uc *p1 = out + j * s->img_x*target;
 			stbi_uc *p2 = out + (s->img_y - 1 - j)*s->img_x*target;
 			for (i = 0; i < (int)s->img_x*target; ++i) {
 				t = p1[i], p1[i] = p2[i], p2[i] = t;
@@ -5495,7 +5495,7 @@ static void *stbi__tga_load(stbi__context *s, int *x, int *y, int *comp, int req
 	if (!tga_indexed && !tga_is_RLE && !tga_rgb16) {
 		for (i = 0; i < tga_height; ++i) {
 			int row = tga_inverted ? tga_height - i - 1 : i;
-			stbi_uc *tga_row = tga_data + row*tga_width*tga_comp;
+			stbi_uc *tga_row = tga_data + row * tga_width*tga_comp;
 			stbi__getn(s, tga_row, tga_width * tga_comp);
 		}
 	}
@@ -5766,7 +5766,7 @@ static void *stbi__psd_load(stbi__context *s, int *x, int *y, int *comp, int req
 		out = (stbi_uc *)stbi__malloc(4 * w*h);
 
 	if (!out) return stbi__errpuc("outofmem", "Out of memory");
-	pixelCount = w*h;
+	pixelCount = w * h;
 
 	// Initialize the data to zero.
 	//memset( out, 0, pixelCount * 4 );
@@ -5989,7 +5989,7 @@ static stbi_uc *stbi__pic_load_core(stbi__context *s, int width, int height, int
 
 		for (packet_idx = 0; packet_idx < num_packets; ++packet_idx) {
 			stbi__pic_packet *packet = &packets[packet_idx];
-			stbi_uc *dest = result + y*width * 4;
+			stbi_uc *dest = result + y * width * 4;
 
 			switch (packet->type) {
 			default:

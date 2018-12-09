@@ -7,22 +7,27 @@
 
 #include <regex>
 
-#include "GLFWUtil.hpp"
+#include "GLFWUtil.h"
 
-#include "vbsp.hpp"
-#include "nav.hpp"
-#include "radar.hpp"
-#include "util.h"
+#include "Shader.h"
+#include "Mesh.h"
 
-#include "Shader.hpp"
-#include "Texture.hpp"
-#include "Camera.hpp"
-#include "Mesh.hpp"
-#include "GameObject.hpp"
+#include "GameObject.h"
+
+#include "ValveKeyValue.h"
+#include "VMF.h"
 
 #include <glm\glm.hpp>
 #include <glm\gtc\matrix_transform.hpp>
 #include <glm\gtc\type_ptr.hpp>
+
+#include "Plane.h"
+#include "ConvexPolytopes.h"
+
+#include "BoundsSelector.h"
+#include "TextFont.h"
+
+#define SCALE_SOURCE_GL 0.01f
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window, util_keyHandler keys);
@@ -30,98 +35,104 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
-int window_width = 1024;
-int window_height = 1024;
+void updateSelectionCoords(glm::vec2 coords, int pointid);
+glm::vec2 projectClickToWorld(glm::vec2 mousecoords);
+
+int window_width = 1080;
+int window_height = 720;
+
+int editing_side = 0;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 bool isClicking = false;
 
+bool rmb_down = false;
+bool lmb_down = false;
+
 double mousex;
 double mousey;
+double _mousex;
+double _mousey;
 
-Camera camera;
-
-int SV_WIREFRAME = 0; //0: off 1: overlay 2: only
-int SV_RENDERMODE = 0;
+float M_ORTHO_SIZE = SCALE_SOURCE_GL * 4;
 int SV_PERSPECTIVE = 0;
+glm::vec3 cam_pos(0.0f, SCALE_SOURCE_GL * 2048, 0.0f);
 
-float M_HEIGHT_MIN = 0.0f;
-float M_HEIGHT_MAX = 10.0f;
+GameObject viewPickerObject;
 
-float M_CLIP_NEAR = 0.1f;
-float M_CLIP_FAR = 100.0f;
+BoundsSelector* bs_test;
+vmf::vmf* _map_a;
+vmf::vmf* _map_b;
 
-bool SV_DRAW_BSP = true;
-bool SV_DRAW_NAV = false;
-
-Radar* _radar;
-
-float M_ORTHO_SIZE = 20.0f;
 
 int main(int argc, char* argv[]) {
-	std::string _FILE_BSP = "";
-	std::string _FILE_NAV = "";
+
+	std::vector<std::string> maps = { "de_arpegio_bu07re01.vmf", "de_nausea15r4.vmf" };
+	//std::vector<std::string> maps = { };
 
 	for (int i = 1; i < argc; ++i) {
 		char* _arg = argv[i];
 		std::string arg = _arg;
 
-		if (split(arg, '.').back() == "bsp") {
-			_FILE_BSP = arg;
-		}
-
-		if (split(arg, '.').back() == "nav") {
-			_FILE_NAV = arg;
+		if (split(arg, '.').back() == "vmf") {
+			maps.push_back(arg);
 		}
 	}
 
-	/*
-	std::vector<glm::vec3> data = {
-		glm::vec3(0,0,-5),
-		glm::vec3(0,0,-4.5),
-		glm::vec3(10,-2,0),
-		glm::vec3(-3,5,0),
-		glm::vec3(0,2,-9),
-		glm::vec3(3,-5,0),
-		glm::vec3(-2,0,4),
-		glm::vec3(1,4,5),
-		glm::vec3(1,4.5f, 5),
-		glm::vec3(4,-5,0),
-		glm::vec3(0,4,-4),
-		glm::vec3(0,6,4),
-		glm::vec3(0,10,0),
-		glm::vec3(-2,-16,0),
-		glm::vec3(0,-4,-8),
-		glm::vec3(1,1,0),
-		glm::vec3(3,3,-4),
-		glm::vec3(0,4,0),
-		glm::vec3(0,-1,0)
+	if (maps.size() < 2) {
+		std::cout << "Drop 2 vmfs onto the exe" << std::endl; system("PAUSE"); return 0;
+	}
+
+	std::vector<float> m_cube_verts = {
+		// positions          // normals          rds
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+		0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+		0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+		0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+
+		0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+		0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+		0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+		0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+		0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+		0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+		0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+		0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+		0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+		0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+		0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+		0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
 	};
-
-	octree::Tree test(data, 3);
-
-	octree::Node* tNode = test.head.getNodeByVec(glm::vec3(0, 0, -5));
-	std::vector<glm::vec3> points = tNode->getContainedValues();
-
-	for (int i = 0; i < points.size(); i++) {
-		glm::vec3 p = points[i];
-
-		std::cout << p.x << " : " << p.y << " : " << p.z << std::endl;
-	}
-
-	std::cout << "Total entries: " << test.head.getEntryCount() << std::endl;
-
-	system("PAUSE");
-	return 0;
-	*/
-
-
 
 #pragma region Initialisation
 
-	std::cout << "Bigman Engine" << std::endl;
+	std::cout << "VMF merge test run 1.0.0-r-a" << std::endl;
 
 	//Initialize OpenGL
 	glfwInit();
@@ -129,9 +140,10 @@ int main(int argc, char* argv[]) {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 	//Creating the window
-	GLFWwindow* window = glfwCreateWindow(window_width, window_height, "bigman engine", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(window_width, window_height, "HarryEngine", NULL, NULL);
 
 	//Check if window open
 	if (window == NULL)
@@ -148,7 +160,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	//Viewport
-	glViewport(0, 0, 1024, 1024);
+	glViewport(0, 0, window_width, window_height);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	//Mouse
@@ -163,39 +175,53 @@ int main(int argc, char* argv[]) {
 	glEnable(GL_DEPTH_TEST);
 
 	//The unlit shader thing
-	Shader shader_unlit("shaders/unlit.vs", "shaders/unlit.fs");
-	Shader shader_lit("shaders/depth.vs", "shaders/depth.fs");
+	Shader shader_unlit("additivecolor.vs", "additivecolor.fs");
+	Shader shader_lit("lit.vs", "lit.fs");
+
 
 	//Mesh handling -----------------------------------------------------------------------------
 
-	Mesh* t200 = NULL;
-	Mesh* t201 = NULL;
+	Mesh cube(m_cube_verts);
+	viewPickerObject = GameObject(&cube, glm::vec3(0, 0, 4));
 
-	if (_FILE_BSP != ""){
-		vbsp_level bsp_map(_FILE_BSP, true);
-		t200 = new Mesh(bsp_map.generate_bigmesh());
-	}
-
-	if (_FILE_NAV != "") {
-		Nav::Mesh bob(_FILE_NAV);
-		t201 = new Mesh(bob.generateGLMesh());
-	}
-
-	//Radar rtest("de_overpass.txt");
-	//_radar = &rtest;
-
-
-
-
-	//VertAlphaMesh t300(vbsp_level::genVertAlpha(t200.vertices, t201.vertices));
 
 	util_keyHandler keys(window);
-	//Create camera (test)
-	camera = Camera(&keys);
 
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
+	vmf::vmf* map_a;
 
+	try { map_a = new vmf::vmf(maps[0]); }
+	catch (...) { return 0; }
+
+	_map_a = map_a;
+	map_a->ComputeGLMeshes();
+
+	vmf::vmf* map_b;
+	try { map_b = new vmf::vmf(maps[1]); }
+	catch (...) { return 0; }
+
+	_map_b = map_b;
+	map_b->ComputeGLMeshes();
+
+
+	bs_test = new BoundsSelector(glm::vec2(0, SCALE_SOURCE_GL * 512.0f), glm::vec2(SCALE_SOURCE_GL * 512.0f, 0));
+
+	map_a->MarkSelected(bs_test);
+
+	TextFont::init(); //Setup textfonts
+
+	TextFont text("Hello World!");
+	text.size = glm::vec2(1.0f / window_width, 1.0f / window_height) * 2.0f;
+	text.alpha = 1.0f;
+	text.color = glm::vec3(0.75f, 0.75f, 0.75f);
+	text.screenPosition = glm::vec2(0, (1.0f / window_height) * 15.0f);
+
+	text.SetText("\
+Middle Mouse: Pan\n\
+Scroll:       Zoom\n\
+Left Click:   Set Point A\n\
+Right Click:  Set Point B\n\
+Tab:          Invert Selection\n\
+Enter:        Save merged");
 
 	//The main loop
 	while (!glfwWindowShouldClose(window))
@@ -206,54 +232,131 @@ int main(int argc, char* argv[]) {
 
 		//Input
 		processInput(window, keys);
-		camera.handleInput(deltaTime);
 
 		//Rendering commands
 		glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glPolygonMode(GL_FRONT, GL_FILL);
-
-
-
-		shader_lit.use();
-		if(SV_PERSPECTIVE == 0)
-			shader_lit.setMatrix("projection", glm::perspective(glm::radians(90.0f / 2), (float)window_width / (float)window_height, M_CLIP_NEAR, M_CLIP_FAR));
-		else
-			shader_lit.setMatrix("projection", glm::ortho(-M_ORTHO_SIZE, M_ORTHO_SIZE, -M_ORTHO_SIZE, M_ORTHO_SIZE, M_CLIP_NEAR, M_CLIP_FAR));
-
-		shader_lit.setMatrix("view", camera.getViewMatrix());
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
+		glBlendEquation(GL_FUNC_ADD);
+		glDepthMask(0);
 
 		glm::mat4 model = glm::mat4();
-		shader_lit.setMatrix("model", model);
 
-		shader_lit.setVec3("color", 0.0f, 0.0f, 1.0f);
-		shader_lit.setFloat("HEIGHT_MIN", M_HEIGHT_MIN);
-		shader_lit.setFloat("HEIGHT_MAX", M_HEIGHT_MAX);
+		shader_unlit.use();
+		shader_unlit.setFloat("alpha", 0.1f);
+		shader_unlit.setMatrix("projection", glm::ortho(-M_ORTHO_SIZE * (float)window_width, M_ORTHO_SIZE * (float)window_width, (float)window_height * -M_ORTHO_SIZE, (float)window_height * M_ORTHO_SIZE, 0.01f, 100.0f));
 
-		
-		if (SV_RENDERMODE == 0)
-			if(t200 != NULL)
-				t200->Draw();
-		
-		if(SV_RENDERMODE == 1)
-			if (t201 != NULL)
-				t201->Draw();
+		glm::mat4 viewMatrix = glm::lookAt(cam_pos, cam_pos + glm::vec3(0, -1.0f, 0), glm::vec3(0, 0, 1));
+		shader_unlit.setMatrix("view", viewMatrix);
 
-		
-			
+		model = glm::mat4();
+		shader_unlit.setMatrix("model", model);
 
-		//t300.Draw();
+#pragma region map_a
+		shader_unlit.setVec3("color", 0.1f, 0.1f, 0.1f);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		//glClear(GL_DEPTH_BUFFER_BIT);
+		for (int i = 0; i < map_a->solids.size(); i++) {
+			if (map_a->solids[i].faces[0].texture == "TOOLS/TOOLSSKIP") continue;
+			if (map_a->solids[i].faces[0].texture == "TOOLS/TOOLSCLIP") continue;
+			if (map_a->solids[i].faces[0].texture == "TOOLS/TOOLSSKYBOX") continue;
+			if (map_a->solids[i].hidden) continue;
 
-		//glPolygonMode(GL_FRONT, GL_LINE);
-		//
-		//shader_unlit.use();
-		//shader_unlit.setMatrix("projection", camera.getProjectionMatrix());
-		//shader_unlit.setMatrix("view", camera.getViewMatrix());
-		//shader_unlit.setMatrix("model", model);
-		//shader_unlit.setVec3("color", 0.0f, 0.0f, 1.0f);
-		//
-		//t201.Draw();
+			map_a->solids[i].mesh->Draw();
+		}
 
+		//Draw lines
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		for (int i = 0; i < map_a->solids.size(); i++) {
+			if (map_a->solids[i].faces[0].texture == "TOOLS/TOOLSSKIP") continue;
+			if (map_a->solids[i].faces[0].texture == "TOOLS/TOOLSCLIP") continue;
+			if (map_a->solids[i].faces[0].texture == "TOOLS/TOOLSSKYBOX") continue;
+			if (map_a->solids[i].hidden) continue;
+
+			map_a->solids[i].mesh->Draw();
+		}
+
+		//Draw entity origins
+		for (int i = 0; i < map_a->entities.size(); i++) {
+			if (map_a->entities[i].hidden) continue;
+
+			model = glm::mat4();
+			model = glm::translate(model, map_a->entities[i].origin);
+			model = glm::scale(model, glm::vec3(0.25f));
+			shader_unlit.setMatrix("model", model);
+
+			cube.Draw();
+		}
+#pragma endregion
+
+#pragma region map_b
+		model = glm::mat4();
+		shader_unlit.setMatrix("model", model);
+
+		shader_unlit.setVec3("color", 0.25f, 0.0f, 0.0f);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		//glClear(GL_DEPTH_BUFFER_BIT);
+		for (int i = 0; i < map_b->solids.size(); i++) {
+			if (map_b->solids[i].faces[0].texture == "TOOLS/TOOLSSKIP") continue;
+			if (map_b->solids[i].faces[0].texture == "TOOLS/TOOLSCLIP") continue;
+			if (map_b->solids[i].faces[0].texture == "TOOLS/TOOLSSKYBOX") continue;
+			if (map_b->solids[i].hidden) continue;
+
+			map_b->solids[i].mesh->Draw();
+		}
+
+		//Draw lines
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		for (int i = 0; i < map_b->solids.size(); i++) {
+			if (map_b->solids[i].faces[0].texture == "TOOLS/TOOLSSKIP") continue;
+			if (map_b->solids[i].faces[0].texture == "TOOLS/TOOLSCLIP") continue;
+			if (map_b->solids[i].faces[0].texture == "TOOLS/TOOLSSKYBOX") continue;
+			if (map_b->solids[i].hidden) continue;
+
+
+			map_b->solids[i].mesh->Draw();
+		}
+
+		//Draw entity origins
+		for (int i = 0; i < map_b->entities.size(); i++) {
+			if (map_b->entities[i].hidden) continue;
+
+			model = glm::mat4();
+			model = glm::translate(model, map_b->entities[i].origin);
+			model = glm::scale(model, glm::vec3(0.25f));
+			shader_unlit.setMatrix("model", model);
+
+			cube.Draw();
+		}
+#pragma endregion
+
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		shader_unlit.setFloat("alpha", 1.0f);
+		shader_unlit.setVec3("color", 1.0f, 0.0f, 0.0f);
+
+		model = glm::mat4();
+		shader_unlit.setMatrix("model", model);
+
+		bs_test->SelectionOverlay->Draw();
+
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		shader_unlit.setVec3("color", 0.0f, 1.0f, 0.0f);
+		model = glm::mat4();
+		model = glm::translate(model, glm::vec3(bs_test->A.x, 0.0f, bs_test->A.y));
+		model = glm::scale(model, glm::vec3(0.5f));
+		shader_unlit.setMatrix("model", model);
+		cube.Draw();
+
+		shader_unlit.setVec3("color", 0.0f, 0.0f, 1.0f);
+		model = glm::mat4();
+		model = glm::translate(model, glm::vec3(bs_test->B.x, 0.0f, bs_test->B.y));
+		model = glm::scale(model, glm::vec3(0.5f));
+		shader_unlit.setMatrix("model", model);
+		cube.Draw();
+
+		// UI Elements
+		text.Draw();
 
 		//Check and call events, swap buffers
 		glfwSwapBuffers(window);
@@ -273,106 +376,103 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	window_height = height;
 }
 
-bool K_CONTROL_MIN = false;
-bool K_CONTROL_MAX = false;
-int SV_EDITMODE = 0;
-
-void setWindowTitle() {
-	std::string title = "BigmanEngine | ";
-
-}
+bool commit_lock = false;
+bool selection_invert = false;
+bool flip_lock = false;
 
 void processInput(GLFWwindow* window, util_keyHandler keys)
 {
-	if (keys.getKeyDown(GLFW_KEY_ESCAPE))
-		glfwSetWindowShouldClose(window, true);
+	//if (keys.getKeyDown(GLFW_KEY_ESCAPE)) glfwSetWindowShouldClose(window, true);
 
-	if (keys.getKeyDown(GLFW_KEY_1)) {
-		SV_EDITMODE = 0; glfwSetWindowTitle(window, "Bigman Engine :: EDITING MIN");
-	}
-	if (keys.getKeyDown(GLFW_KEY_2)) {
-		SV_EDITMODE = 1; glfwSetWindowTitle(window, "Bigman Engine :: EDITING MAX");
-	}
-	if (keys.getKeyDown(GLFW_KEY_3)) {
-		//SV_EDITMODE = 2; glfwSetWindowTitle(window, "Bigman Engine :: de_overpass.bsp - EDITING NEAR");
-	}
-	if (keys.getKeyDown(GLFW_KEY_4)) {
-		//SV_EDITMODE = 3; glfwSetWindowTitle(window, "Bigman Engine :: de_overpass.bsp - EDITING FAR");
+	if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
+		if (!commit_lock) {
+			_map_a->Commit_Merge(_map_b);
+			commit_lock = true;
+
+			char filename[MAX_PATH];
+		}
 	}
 
-	if (keys.getKeyDown(GLFW_KEY_5)) {
-		SV_PERSPECTIVE = 0; glfwSetWindowTitle(window, "Bigman Engine :: perspective");
+	if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) {
+		if (!flip_lock) {
+			flip_lock = true;
+
+			selection_invert = !selection_invert;
+			updateSelectionCoords(glm::vec2(0), -1); //Force update
+		}
 	}
-
-	if (keys.getKeyDown(GLFW_KEY_6)) {
-		SV_PERSPECTIVE = 1; glfwSetWindowTitle(window, "Bigman Engine :: ortho");
-	}
-
-
-	if (keys.getKeyDown(GLFW_KEY_7)) {
-		SV_RENDERMODE = 0; glfwSetWindowTitle(window, "Bigman Engine :: .bsp");
-
-		glEnable(GL_CULL_FACE);
-	}
-
-	if (keys.getKeyDown(GLFW_KEY_8)) {
-		SV_RENDERMODE = 1; glfwSetWindowTitle(window, "Bigman Engine :: .nav");
-
-		glDisable(GL_CULL_FACE);
-	}
-
-	if (keys.getKeyDown(GLFW_KEY_9)) {
-		SV_EDITMODE = 4;
-		//M_ORTHO_SIZE = (_radar->scale / 0.1f) / 2.0f;
-		//camera.cameraPos.x = (-_radar->pos_x ) * 0.01f;
-		//camera.cameraPos.z = (_radar->pos_y - 1024) * 0.01f;
-		glfwSetWindowTitle(window, "Bigman Engine :: EDITING ORTHO SCALE");
-
-	}
-
-	if (keys.getKeyDown(GLFW_KEY_0)) {
-		camera.yaw = 0;
-		camera.pitch = -90;
-		camera.mouseUpdate(0, 0, true);
-		//camera.cameraFront = glm::vec3(0, 0, -1);
-		//camera.cameraUp = glm::vec3(0, 1, 0);
-	}
+	else flip_lock = false;
 }
+
+glm::vec2 projectClickToWorld(glm::vec2 mousecoords)
+{
+	mousecoords -= glm::vec2(window_width / 2.0f, window_height / 2.0f);
+	mousecoords *= (M_ORTHO_SIZE * 2);
+	mousecoords *= -1.0f;
+	mousecoords += glm::vec2(cam_pos.x, cam_pos.z);
+
+	return mousecoords;
+}
+
+void updateSelectionCoords(glm::vec2 coords, int pointid)
+{
+	if (pointid == 0)
+		bs_test->SetA(coords);
+	else if(pointid == 1)
+		bs_test->SetB(coords);
+
+	bs_test->UpdateMeshes();
+	_map_a->MarkSelected(bs_test, selection_invert);
+	_map_b->MarkSelected(bs_test, !selection_invert);
+}
+
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	camera.mouseUpdate(xpos, ypos, isClicking);
+	_mousex = mousex; _mousey = mousey;
 	mousex = xpos; mousey = ypos;
+
+	if (isClicking) {
+		cam_pos += glm::vec3(1.0, 0.0, 0.0) * (float)(mousex - _mousex) * (M_ORTHO_SIZE * 2);
+		cam_pos += glm::vec3(0.0, 0.0, 1.0) * (float)(mousey - _mousey) * (M_ORTHO_SIZE * 2);
+
+		glfwSetWindowTitle(window, (std::to_string((int)(-cam_pos.x * (1.0f / M_ORTHO_SIZE))) + " " + std::to_string((int)(cam_pos.z * (1.0f / M_ORTHO_SIZE)))).c_str());
+	}
+
+	if (rmb_down) updateSelectionCoords(projectClickToWorld(glm::vec2(mousex, mousey)), 0);
+	if (lmb_down) updateSelectionCoords(projectClickToWorld(glm::vec2(mousex, mousey)), 1);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	//camera.fov = glm::clamp(camera.fov + (float)yoffset, 2.0f, 90.0f);
-
-	if(SV_EDITMODE == 0)
-		M_HEIGHT_MIN += (float)yoffset * 0.1f;
-
-	if (SV_EDITMODE == 1)
-		M_HEIGHT_MAX += (float)yoffset * 0.1f;
-
-	if (SV_EDITMODE == 4)
-		M_ORTHO_SIZE += (float)yoffset * 0.1f;
-
-	//if (SV_EDITMODE == 2)	M_CLIP_NEAR += (float)yoffset * 0.1f;
-
-	//if (SV_EDITMODE == 3)	M_CLIP_FAR += (float)yoffset * 0.1f;
+	M_ORTHO_SIZE += (float)-yoffset * 0.0025f;
+	if (M_ORTHO_SIZE < 0.001f) M_ORTHO_SIZE = 0.001f;
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS)
 	{
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_HAND_CURSOR);
 		isClicking = true;
 	}
 	else
 	{
 		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		isClicking = false;
+	}
+
+	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+		updateSelectionCoords(projectClickToWorld(glm::vec2(mousex, mousey)), 0); rmb_down = true;
+	}
+	else {
+		rmb_down = false;
+	}
+
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+		updateSelectionCoords(projectClickToWorld(glm::vec2(mousex, mousey)), 1); lmb_down = true;
+	}
+	else {
+		lmb_down = false;
 	}
 }
