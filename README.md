@@ -1,8 +1,7 @@
 # VMF Merge tool
 
-![](http://harrygodden.com/rs/?i=5c0cf76a1d60a.png)
-
 [Get the latest release here](https://github.com/Terri00/VMFM/releases)
+![](http://harrygodden.com/rs/?i=5c0cf76a1d60a.png)
 
 # Usage
 Drag and drop two VMF's onto the batch file to start the merge process
