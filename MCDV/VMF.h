@@ -360,7 +360,7 @@ namespace vmf {
 			std::cout << "OK (" << count << ")" << std::endl;
 
 			std::cout << "Serializing VMF file... "; // VMF Data Serialization =============================================
-			std::ofstream file("mrg01.vmf"); this->internal.headNode.Serialize(file, -1); file.close();
+			std::ofstream file("../mrg01.vmf"); this->internal.headNode.Serialize(file, -1); file.close();
 			std::cout << "OK" << std::endl;
 
 			std::cout << "Done!! Written to 'mrg01.vmf'" << std::endl;

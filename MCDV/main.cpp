@@ -66,11 +66,17 @@ BoundsSelector* bs_test;
 vmf::vmf* _map_a;
 vmf::vmf* _map_b;
 
+int quit_safe() {
+	//Exit safely
+	glfwTerminate();
+	return 0;
+}
+
 
 int main(int argc, char* argv[]) {
 
-	std::vector<std::string> maps = { "de_arpegio_bu07re01.vmf", "de_nausea15r4.vmf" };
-	//std::vector<std::string> maps = { };
+	//std::vector<std::string> maps = { "de_arpegio_bu07re01.vmf", "br_terri_v2_b.vmf" };
+	std::vector<std::string> maps = { };
 
 	for (int i = 1; i < argc; ++i) {
 		char* _arg = argv[i];
@@ -132,7 +138,7 @@ int main(int argc, char* argv[]) {
 
 #pragma region Initialisation
 
-	std::cout << "VMF merge test run 1.0.0-r-a" << std::endl;
+	std::cout << "VMF merge v1.0.1" << std::endl;
 
 	//Initialize OpenGL
 	glfwInit();
@@ -143,7 +149,7 @@ int main(int argc, char* argv[]) {
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 	//Creating the window
-	GLFWwindow* window = glfwCreateWindow(window_width, window_height, "HarryEngine", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(window_width, window_height, "VMFMerge", NULL, NULL);
 
 	//Check if window open
 	if (window == NULL)
@@ -190,14 +196,14 @@ int main(int argc, char* argv[]) {
 	vmf::vmf* map_a;
 
 	try { map_a = new vmf::vmf(maps[0]); }
-	catch (...) { return 0; }
+	catch (...) { return quit_safe(); }
 
 	_map_a = map_a;
 	map_a->ComputeGLMeshes();
 
 	vmf::vmf* map_b;
 	try { map_b = new vmf::vmf(maps[1]); }
-	catch (...) { return 0; }
+	catch (...) { return quit_safe(); }
 
 	_map_b = map_b;
 	map_b->ComputeGLMeshes();

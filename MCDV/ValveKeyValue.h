@@ -99,8 +99,10 @@ namespace kv
 			if (this->Values.count("id") == 1) this->Values["id"] = std::to_string((*remapTable)[(int)::atof(this->Values["id"].c_str())]);
 
 			//Update side reference lists
+			if(this->Values["classname"] == "info_overlay")
 			if (this->Values.count("sides") == 1) {
 				std::vector<std::string> vals = split(this->Values["sides"], ' ');
+
 				std::string build = "";
 				for (int i = 0; i < vals.size(); i++) {
 					build += std::to_string((*remapTable)[(int)::atof(vals[i].c_str())]);
