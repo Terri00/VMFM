@@ -75,7 +75,7 @@ int quit_safe() {
 
 int main(int argc, char* argv[]) {
 
-	//std::vector<std::string> maps = { "de_arpegio_bu07re01.vmf", "br_terri_v2_b.vmf" };
+	//std::vector<std::string> maps = { "de_arpegio_bu07re01.vmf", "de_nausea15r4.vmf" };
 	std::vector<std::string> maps = { };
 
 	for (int i = 1; i < argc; ++i) {

@@ -208,6 +208,8 @@ namespace kv
 			for (auto it = targetIds.begin(); it != targetIds.end(); it++){
 				if (orginalIds.count(*it) == 0) {
 					orginalIds.insert(*it);
+					//Remap back itself since there was no collision
+					remapIds.insert({ *it, *it }); //Create remap instruction
 					continue;
 				}; //Skip availible ids
 
