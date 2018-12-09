@@ -5,9 +5,8 @@
 [Get the latest release here](https://github.com/Terri00/VMFM/releases)
 
 # Usage
-![](http://harrygodden.com/rs/?i=5c0cf81b392ea.png)
 Drag and drop two VMF's onto the batch file to start the merge process
-
+![](http://harrygodden.com/rs/?i=5c0cf81b392ea.png)
 
 ## Extra Credits
 
