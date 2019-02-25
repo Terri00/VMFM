@@ -1,4 +1,9 @@
 # Releases
+This tool requires Visual C++ 2017 redistributables, you can donwload them here:
+
+- https://aka.ms/vs/15/release/vc_redist.x64.exe (64 bit)
+- https://aka.ms/vs/15/release/vc_redist.x86.exe (32 bit)
+
 [Get the latest release here](https://github.com/Terri00/VMFM/releases)
 
 # VMF Merge tool
